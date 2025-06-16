@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Wisuda Interaktif</title>
+    <style>
+        /* General styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            background-color: black;
+            touch-action: manipulation; /* Prevent default browser behaviors like zoom on double tap */
+        }
+
+        /* Common slide styles */
+        .screen, .slide-content {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background-color: black;
+            color: white;
+            font-size: 1.5em;
+            text-align: center;
+            padding: 20px;
+        }
+        .screen.active, .slide-content.active {
+            display: flex;
+        }
+
+        /* Login Screen */
+        #loginScreen {
+            display: flex;
+            background: url('backround-log-in.jpg') no-repeat center center/cover;
+        }
+        #loginBox {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px white;
+            max-width: 300px;
+        }
+        #loginBox input, #loginBox button {
+            width: 250px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            border-radius: 5px;
+        }
+        #loginBox input {
+            background-color: black;
+            border: 2px solid white;
+            color: white;
+        }
+        #loginBox button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #loginBox button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Loading Screen */
+        #loadingScreen {
+            background-color: black;
+            color: #0f0;
+            font-size: 18px;
+        }
+        #loadingBox {
+            border: 2px solid #0f0;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        #continueBtn {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+        }
+
+        /* Slide 0 (Tap to start) */
+        #slide0 {
+            cursor: pointer;
+        }
+
+        /* Video Slide */
+        #videoSlide {
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            background: url('layer1.png') center center/cover no-repeat;
+        }
+        #videoSlide video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            transition: opacity 1s ease;
+        }
+
+        /* Image Slide (from original slide 2) */
+        #imageSlide {
+            background: url('layer1.png') center center/cover no-repeat;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        #imageSlide .photo {
+            position: absolute;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        /* Slide 3 (Photo Gallery 2) */
+        #slide3Container {
+            background: black; /* Ensure black background if layer3.png doesn't cover fully */
+            overflow: hidden;
+            position: relative;
+        }
+        #slide3Container::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('layer3.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: -2;
+        }
+        #slide3Container .photo-s3 {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+            z-index: -1;
+        }
+        #slide3Container .photo-s3.active {
+            opacity: 1;
+            z-index: 0;
+        }
+
+        /* Slide 4 (Download Photos) */
+        #slide4Container {
+            background: black;
+            overflow: hidden;
+            position: relative;
+            font-family: sans-serif;
+        }
+        #slide4Container::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: url('bgslide4.png') center/cover no-repeat;
+            z-index: -3;
+        }
+        #slide4Container .layer-s4 {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            object-fit: cover;
+            opacity: 0;
+            z-index: 0;
+            transition: opacity 1.5s ease-in-out;
+            pointer-events: none;
+        }
+        #slide4Container .layer-s4.visible {
+            opacity: 1;
+            z-index: 1;
+            pointer-events: auto;
+        }
+        #slide4Container .button-group {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 16px;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+            z-index: 3;
+        }
+        #slide4Container .button-group.show {
+            opacity: 1;
+        }
+        #slide4Container .button-group a { text-decoration: none; }
+        #slide4Container .download-button {
+            padding: 12px 20px;
+            font-size: 1em;
+            background-color: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* Slide 5 (Download Text) */
+        #slide5Container {
+            background: url('bgslide5.png') no-repeat center center / cover;
+            flex-direction: column;
+            font-family: sans-serif;
+        }
+        #slide5Container img {
+            max-width: 90vw;
+            max-height: 70vh;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #slide5Container .button {
+            padding: 12px 24px;
+            font-size: 1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: rgba(255,255,255,0.95);
+            color: #000;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        /* Slide 6 (Final Photo Gallery) */
+        #slide6Container {
+            background: black;
+            overflow: hidden;
+        }
+        #slide6Container .slide-s6 {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+            z-index: 0;
+        }
+        #slide6Container .slide-s6.visible {
+            opacity: 1;
+            z-index: 0;
+        }
+        #slide6Container .slide-s6.fade-out {
+            opacity: 0;
+            z-index: 1;
+        }
+        audio { display: none; }
+    </style>
+</head>
+<body>
+    <div id="loginScreen" class="screen active">
+        <div id="loginBox">
+            <input type="text" id="username" placeholder="Username" />
+            <input type="password" id="password" placeholder="Password" />
+            <button onclick="checkLogin()">❤️ Masuk ❤️</button>
+        </div>
+    </div>
+
+    <div id="loadingScreen" class="screen">
+        <div id="loadingBox">
+            <div id="loadingText">Loading...</div>
+            <button id="continueBtn" onclick="goToSlide0()">Lanjutkan</button>
+        </div>
+    </div>
+
+    <div class="slide-content" id="slide0">
+        💔 Ketuk di mana saja untuk memulai,<br>asalkan bukan hati orang lain yang kau ketuk.
+    </div>
+
+    <div class="slide-content" id="videoSlide">
+        <video id="video" muted autoplay>
+            <source src="vid1.mp4" type="video/mp4">
+            Browser kamu tidak mendukung video tag.
+        </video>
+    </div>
+
+    <div class="slide-content" id="imageSlide"></div>
+
+    <div class="slide-content" id="slide3Container">
+        <img src="ft1.1.jpg.jpg" class="photo-s3 active" />
+        <img src="ft1.2.jpg.jpg" class="photo-s3" />
+        <img src="ft1.3.jpg.jpg" class="photo-s3" />
+        <img src="ft1.4.jpg.jpg" class="photo-s3" />
+        <img src="ft1.5.jpg.jpg" class="photo-s3" />
+        <img src="ft1.6.jpg.jpg" class="photo-s3" />
+        <img src="ft1.7.jpg.jpg" class="photo-s3" />
+        <img src="ft1.8.jpg.jpg" class="photo-s3" />
+        <img src="ft1.9.jpg.jpg" class="photo-s3" />
+        <img src="ft1.10.jpg.jpg" class="photo-s3" />
+    </div>
+
+    <div class="slide-content" id="slide4Container">
+        <img src="slide4.png" class="layer-s4 visible" />
+        <img src="ft1.slide4.png" class="layer-s4" />
+        <img src="ft2.slide4.png" class="layer-s4" />
+        <div class="button-group" id="buttonGroupS4">
+            <a id="downloadLeft" download><button class="download-button">Download with background</button></a>
+            <a id="downloadRight" download><button class="download-button">Download original</button></a>
+        </div>
+    </div>
+
+    <div class="slide-content" id="slide5Container">
+        <img src="isislide5.png" alt="Tulisan Perasaan" />
+        <a href="isislide5.png" download="Tulisan_Perasaanku.png">
+            <button class="button">Download Tulisan Perasaan</button>
+        </a>
+    </div>
+
+    <div class="slide-content" id="slide6Container">
+        <img src="final.1.jpg" class="slide-s6 visible">
+        <img src="final.2.jpg" class="slide-s6">
+        <img src="final.3.jpg" class="slide-s6">
+        <img src="final.4.jpg" class="slide-s6">
+        <img src="final.5.jpg" class="slide-s6">
+        <img src="final.6.jpg" class="slide-s6">
+        <img src="final.7.jpg" class="slide-s6">
+        <img src="final.8.jpg" class="slide-s6">
+        <img src="final.9.jpg" class="slide-s6">
+        <img src="final.10.jpg" class="slide-s6">
+        <img src="final.11.jpg" class="slide-s6">
+        <img src="final.12.jpg" class="slide-s6">
+        <img src="final.13.jpg" class="slide-s6">
+        <img src="final.14.jpg" class="slide-s6">
+        <img src="final.15.jpg" class="slide-s6">
+        <img src="final.16.jpg" class="slide-s6">
+        <img src="final.17.jpg" class="slide-s6">
+        <img src="final.18.jpg" class="slide-s6">
+        <img src="final.19.jpg" class="slide-s6">
+        <img src="final.20.jpg" class="slide-s6">
+        <img src="final.21.png" class="slide-s6">
+    </div>
+
+    <audio id="bgSound" src="suara.mp3" preload="auto" loop></audio>
+
+    <script>
+        const loginScreen = document.getElementById('loginScreen');
+        const loadingScreen = document.getElementById('loadingScreen');
+        const loadingText = document.getElementById('loadingText');
+        const continueBtn = document.getElementById('continueBtn');
+        const slide0 = document.getElementById('slide0');
+        const videoSlide = document.getElementById('videoSlide');
+        const video = document.getElementById('video');
+        const imageSlide = document.getElementById('imageSlide');
+        const slide3Container = document.getElementById('slide3Container');
+        const slide4Container = document.getElementById('slide4Container');
+        const buttonGroupS4 = document.getElementById("buttonGroupS4");
+        const downloadLeft = document.getElementById("downloadLeft");
+        const downloadRight = document.getElementById("downloadRight");
+        const slide5Container = document.getElementById('slide5Container');
+        const slide6Container = document.getElementById('slide6Container');
+        const bgSound = document.getElementById('bgSound');
+
+        let currentActiveSlide = loginScreen;
+
+        // --- General Slide Management ---
+        function showSlide(newSlide, setupFunction = null) {
+            if (currentActiveSlide) {
+                currentActiveSlide.classList.remove("active");
+                // Remove specific event listeners if they were attached to the currentActiveSlide itself
+                currentActiveSlide.removeEventListener('click', handleSlideClick);
+                document.removeEventListener('contextmenu', preventContextMenu);
+            }
+            newSlide.classList.add("active");
+            currentActiveSlide = newSlide;
+
+            if (setupFunction) {
+                setupFunction();
+            }
+        }
+
+        function handleSlideClick(e) {
+            // This function will be assigned dynamically based on the active slide
+        }
+
+        function preventContextMenu(e) {
+            e.preventDefault();
+        }
+
+        // --- Login Screen Logic ---
+        function checkLogin() {
+            const user = document.getElementById("username").value;
+            const pass = document.getElementById("password").value;
+            if (user === "auratikadanhilmy" && pass === "23februari") {
+                showSlide(loadingScreen, startLoading);
+            } else {
+                alert("Username atau password salah!");
+            }
+        }
+
+        // --- Loading Screen Logic ---
+        function startLoading() {
+            const messages = [
+                "Menghubungkan ke hati...",
+                "Mengurai perasaan...",
+                "Memverifikasi identitas...",
+                "Menyiapkan perasaan...",
+                "perasaan telah disiapkan",
+                "from me",
+                "for you",
+                "i love you",
+                "I will stay here",
+                "waiting for you"
+            ];
+            let msgIndex = 0;
+            const msgInterval = setInterval(() => {
+                if (msgIndex < messages.length) {
+                    loadingText.textContent = messages[msgIndex++];
+                } else {
+                    clearInterval(msgInterval);
+                    loadingText.textContent = "Login success";
+                    setTimeout(() => {
+                        loadingText.textContent = "Hai sayyaannggg, Have a great graduation day yaawww";
+                        continueBtn.style.display = "inline-block";
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        function goToSlide0() {
+            showSlide(slide0, () => {
+                slide0.addEventListener("click", () => {
+                    bgSound.play().catch(e => console.error("Audio play failed:", e));
+                    showSlide(videoSlide, setupVideoSlide);
+                }, { once: true });
+            });
+        }
+
+        // --- Video Slide Logic (Original Slide 1) ---
+        function setupVideoSlide() {
+            video.currentTime = 0;
+            video.pause(); // Ensure paused before user interaction
+            video.style.opacity = 1; // Reset opacity in case it was faded out
+
+            // Event listener for first click to play video
+            videoSlide.addEventListener("click", function videoPlayOnce() {
+                video.play();
+                videoSlide.removeEventListener("click", videoPlayOnce); // Remove after first play
+            }, { once: true });
+
+            const pauseChecker = setInterval(() => {
+                if (video.currentTime >= 7) {
+                    video.pause();
+                    clearInterval(pauseChecker);
+                    // Allow re-play after pause at 7s
+                    videoSlide.addEventListener("click", function videoReplayOnce() {
+                        video.play();
+                        videoSlide.removeEventListener("click", videoReplayOnce);
+                    }, { once: true });
+                }
+            }, 200);
+
+            video.addEventListener("ended", function videoEndedHandler() {
+                video.style.opacity = 0;
+                setTimeout(() => {
+                    showSlide(imageSlide, setupImageSlide);
+                }, 1000);
+                video.removeEventListener("ended", videoEndedHandler);
+            }, { once: true });
+        }
+
+
+        // --- Image Slide Logic (Original Slide 2) ---
+        const photosSlide2 = ['ft1.1.jpg', 'ft1.2.jpg', 'ft1.3.jpg', 'ft1.4.jpg', 'ft1.5.jpg'];
+        let currentPhotoSlide2 = 0;
+        let isTransitioningSlide2 = false;
+
+        function setupImageSlide() {
+            currentPhotoSlide2 = 0; // Reset to first photo
+            showPhotoSlide2(currentPhotoSlide2);
+            imageSlide.addEventListener("click", handleImageSlideClick);
+            document.addEventListener("contextmenu", preventContextMenu);
+        }
+
+        function handleImageSlideClick(e) {
+            if (isTransitioningSlide2) return;
+            const x = e.clientX;
+            const half = window.innerWidth / 2;
+            if (x > half && currentPhotoSlide2 < photosSlide2.length - 1) {
+                showPhotoSlide2(++currentPhotoSlide2);
+            } else if (x < half && currentPhotoSlide2 > 0) {
+                showPhotoSlide2(--currentPhotoSlide2);
+            } else if (currentPhotoSlide2 === photosSlide2.length - 1 && x > half) {
+                // If on the last image and clicked right, move to next slide
+                imageSlide.removeEventListener("click", handleImageSlideClick);
+                document.removeEventListener("contextmenu", preventContextMenu);
+                showSlide(slide3Container, setupSlide3);
+            }
+        }
+
+        function showPhotoSlide2(index) {
+            isTransitioningSlide2 = true;
+            const oldPhotos = document.querySelectorAll('#imageSlide .photo');
+            oldPhotos.forEach(p => p.remove());
+
+            const img = document.createElement('img');
+            img.src = photosSlide2[index];
+            img.classList.add('photo');
+            imageSlide.appendChild(img);
+            requestAnimationFrame(() => {
+                img.style.opacity = 1;
+                setTimeout(() => {
+                    isTransitioningSlide2 = false;
+                }, 1000);
+            });
+        }
+
+        // --- Slide 3 Logic (Photo Gallery from original slide3.html) ---
+        const photosSlide3 = document.querySelectorAll("#slide3Container .photo-s3");
+        let currentIndexSlide3 = 0;
+
+        function setupSlide3() {
+            currentIndexSlide3 = 0; // Reset to first photo
+            showPhotoSlide3(currentIndexSlide3);
+            slide3Container.addEventListener("click", handleSlide3Click);
+            document.addEventListener("contextmenu", preventContextMenu);
+        }
+
+        function handleSlide3Click(e) {
+            const clickX = e.clientX;
+            const screenWidth = window.innerWidth;
+
+            if (clickX > screenWidth / 2) {
+                if (currentIndexSlide3 < photosSlide3.length - 1) {
+                    currentIndexSlide3++;
+                    showPhotoSlide3(currentIndexSlide3);
+                } else {
+                    slide3Container.removeEventListener("click", handleSlide3Click);
+                    document.removeEventListener("contextmenu", preventContextMenu);
+                    showSlide(slide4Container, setupSlide4); // Move to Slide 4
+                }
+            } else {
+                if (currentIndexSlide3 > 0) {
+                    currentIndexSlide3--;
+                    showPhotoSlide3(currentIndexSlide3);
+                }
+            }
+        }
+
+        function showPhotoSlide3(index) {
+            photosSlide3.forEach((img, i) => {
+                img.classList.remove("active");
+                if (i === index) img.classList.add("active");
+            });
+        }
+
+        // --- Slide 4 Logic (Download Photos from original slide4.html) ---
+        const slidesS4 = document.querySelectorAll("#slide4Container .layer-s4");
+        let indexS4 = 0;
+        const transitionDelayS4 = 1500;
+
+        function setupSlide4() {
+            indexS4 = 0; // Start with the first layer
+            updateSlideS4(0); // Show initial slide and hide buttons
+            slide4Container.addEventListener("click", handleSlide4Click);
+            document.addEventListener("contextmenu", preventContextMenu);
+        }
+
+        function handleSlide4Click(e) {
+            // Don't navigate if a download button was clicked
+            if (e.target.closest(".download-button")) return;
+
+            const x = e.clientX;
+            const mid = window.innerWidth / 2;
+
+            if (x < mid) goPrevS4();
+            else goNextS4();
+        }
+
+        function updateDownloadButtonsS4(i) {
+            if (i === 1) {
+                downloadLeft.href = "ft1.slide4.png";
+                downloadRight.href = "ft.1.4.jpg";
+                buttonGroupS4.classList.add("show");
+            } else if (i === 2) {
+                downloadLeft.href = "ft2.slide4.png";
+                downloadRight.href = "ft.2.4.png";
+                buttonGroupS4.classList.add("show");
+            } else {
+                buttonGroupS4.classList.remove("show");
+            }
+        }
+
+        function updateSlideS4(to) {
+            if (to < 0 || to >= slidesS4.length) return;
+
+            buttonGroupS4.classList.remove("show"); // Hide buttons immediately
+
+            setTimeout(() => {
+                slidesS4[indexS4].classList.remove("visible");
+                slidesS4[to].classList.add("visible");
+                indexS4 = to;
+
+                setTimeout(() => {
+                    updateDownloadButtonsS4(indexS4);
+                }, transitionDelayS4);
+            }, transitionDelayS4);
+        }
+
+        function goNextS4() {
+            if (indexS4 < slidesS4.length - 1) {
+                updateSlideS4(indexS4 + 1);
+            } else {
+                // Last slide, transition to slide 5 after buttons hide
+                buttonGroupS4.classList.remove("show");
+                setTimeout(() => {
+                    slide4Container.removeEventListener("click", handleSlide4Click);
+                    document.removeEventListener("contextmenu", preventContextMenu);
+                    showSlide(slide5Container, setupSlide5); // Move to Slide 5
+                }, transitionDelayS4);
+            }
+        }
+
+        function goPrevS4() {
+            if (indexS4 > 0) { // Allow going back to initial slide4.png
+                updateSlideS4(indexS4 - 1);
+            }
+        }
+
+        // --- Slide 5 Logic (Download Text from original slide5.html) ---
+        function setupSlide5() {
+            // No special click handling, just displays content
+            // The download button is handled by the <a> tag's download attribute
+            slide5Container.addEventListener("click", () => {
+                // Advance to Slide 6 after a click anywhere
+                slide5Container.removeEventListener("click", handleSlide5Click);
+                showSlide(slide6Container, setupSlide6);
+            }, { once: true }); // Only allow one click to advance
+        }
+
+        function handleSlide5Click() {
+            // This function exists to allow removing the event listener
+        }
+
+
+        // --- Slide 6 Logic (Final Photo Gallery from original slide6.html) ---
+        const slidesS6 = document.querySelectorAll('#slide6Container .slide-s6');
+        let currentS6 = 0;
+
+        function setupSlide6() {
+            currentS6 = 0; // Reset to first photo
+            slidesS6.forEach((img, i) => {
+                img.classList.remove('visible', 'fade-out');
+                if (i === 0) img.classList.add('visible');
+            });
+            slide6Container.addEventListener('click', handleSlide6Click);
+            document.addEventListener('contextmenu', preventContextMenu);
+        }
+
+        function handleSlide6Click(e) {
+            const x = e.clientX;
+            const width = window.innerWidth;
+
+            if (x > width / 2 && currentS6 < slidesS6.length - 1) {
+                const currentSlide = slidesS6[currentS6];
+                currentS6++;
+                const nextSlide = slidesS6[currentS6];
+
+                nextSlide.classList.add('visible');
+                currentSlide.classList.add('fade-out');
+
+                setTimeout(() => {
+                    currentSlide.classList.remove('visible', 'fade-out');
+                }, 1500);
+            }
+            else if (x <= width / 2 && currentS6 > 0) {
+                const currentSlide = slidesS6[currentS6];
+                currentS6--;
+                const prevSlide = slidesS6[currentS6];
+
+                prevSlide.classList.add('visible');
+                currentSlide.classList.add('fade-out');
+
+                setTimeout(() => {
+                    currentSlide.classList.remove('visible', 'fade-out');
+                }, 1500);
+            }
+        }
+
+        // --- Audio Control on Visibility Change ---
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) bgSound.pause();
+            else if (!bgSound.paused) bgSound.play().catch(() => {});
+        });
+
+        // Initialize the first screen
+        document.addEventListener('DOMContentLoaded', () => {
+            // loginScreen is already active by default in HTML
+        });
+    </script>
+</body>
+</html>
